@@ -1,18 +1,37 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'golang:latest'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
+    environment {
+        DOCKER_HUB = credentials('dockerhub')
+    }
     stages {
         stage('Build') {
+            steps {
+                sh 'docker build -t $DOCKER_HUB_USR/workerTest docker/helloworkflow.Dockerfile'
+                sh 'docker build -t $DOCKER_HUB_USR/helloworkflowTest docker/helloworkflow.Dockerfile'
+            }
+        }
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USERNAME')]) {
+                    sh 'echo "$DOCKER_HUB_PASSWORD" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin'
+                    sh 'docker push $DOCKER_HUB_USR/helloworkflowTest $DOCKER_HUB_USR/workerTest'
+                }
+            }
+        }
+        stage('Deploy temporal apps'){
             agent {
                 docker {
-                    image 'docker:dind'
-                    // Run the container on the node specified at the
-                    // top-level of the Pipeline, in the same workspace,
-                    // rather than on a new node entirely:
-                    reuseNode true
+                    image 'lachlanevenson/k8s-kubectl:v1.17.4'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             steps {
-                sh 'docker build -t akingo:worker:1.0.0 docker/worker.Dockerfile'
+                sh 'kubectl apply -f manifest.yml'
             }
         }
     }
