@@ -15,7 +15,7 @@ pipeline {
                 sh 'docker build -t $DOCKER_HUB_USR/helloworkflowTest docker/helloworkflow.Dockerfile'
             }
         }
-        stage('Push to Docker Hub') {
+        stage('Push worker and helloworkflow to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USERNAME')]) {
                     sh 'echo "$DOCKER_HUB_PASSWORD" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin'
